@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from utils import load_text_files, simple_chunk
 from rag import VectorStore, format_prompt
-from hf import hf_generate
+from nemotron.hf import hf_feature_extraction, hf_generate
+from nemotron.hf import feature_extraction
+
 
 load_dotenv()
 
@@ -121,7 +123,13 @@ def extract_value_by_path(obj: dict, path: str):
         return current
     except (KeyError, IndexError, TypeError, AttributeError):
         return None
-
+    
+@nemotron.post("/generate")
+async def generate(payload: GenerateIn):
+    text_to_embed = payload.query or "Analyze API schema changes"
+    embedding = hf_feature_extraction([text_to_embed])[0]
+    print("Generated embedding:", embedding[:10]) 
+    
 @nemotron.post("/generate")
 async def generate(payload: GenerateIn):
     """
@@ -287,6 +295,3 @@ Please provide insights on why these changes were made, focusing on:
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(nemotron, host="0.0.0.0", port=8000)
-    
-    
-
