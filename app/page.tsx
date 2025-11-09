@@ -201,7 +201,7 @@ export default function Page() {
   function loadSamples(){ setOldUrl("/samples/v1.json"); setNewUrl("/samples/v2.json"); }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <main className="min-h-screen bg-linear-to-b from-slate-50 to-white">
       <div className="mx-auto max-w-5xl p-6 space-y-4">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">API Migration Copilot </h1>
