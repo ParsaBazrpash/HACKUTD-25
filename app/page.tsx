@@ -9,6 +9,109 @@ function formatJson(obj: any): string {
   return JSON.stringify(obj, null, 2);
 }
 
+// Get highlight class for a path based on diff report
+function getHighlightClass(path: string, report: DiffReport | null, isOld: boolean): string {
+  if (!report) return "";
+  
+  const change = report.changes.find(c => (c as any).path === path);
+  if (!change) return "";
+  
+  if (change.kind === "REMOVED_FIELD") {
+    return isOld ? "bg-red-100 border-l-4 border-red-500 py-0.5 px-2 -mx-2 rounded-r" : "";
+  }
+  if (change.kind === "ADDED_FIELD") {
+    return isOld ? "" : "bg-green-100 border-l-4 border-green-500 py-0.5 px-2 -mx-2 rounded-r";
+  }
+  if (change.kind === "TYPE_CHANGED") {
+    return "bg-amber-100 border-l-4 border-amber-500 py-0.5 px-2 -mx-2 rounded-r";
+  }
+  return "";
+}
+
+// Recursive JSON renderer with highlighting
+function renderJsonWithHighlights(
+  obj: any, 
+  report: DiffReport | null, 
+  isOld: boolean, 
+  currentPath: string = "", 
+  indent: number = 0
+): JSX.Element {
+  const indentStr = "  ".repeat(indent);
+  
+  if (obj === null) {
+    const highlight = getHighlightClass(currentPath, report, isOld);
+    return <span className={highlight}>null</span>;
+  }
+  
+  if (typeof obj === "string") {
+    const highlight = getHighlightClass(currentPath, report, isOld);
+    return <span className={highlight}>{JSON.stringify(obj)}</span>;
+  }
+  
+  if (typeof obj === "number" || typeof obj === "boolean") {
+    const highlight = getHighlightClass(currentPath, report, isOld);
+    return <span className={highlight}>{String(obj)}</span>;
+  }
+  
+  if (Array.isArray(obj)) {
+    const highlight = getHighlightClass(currentPath, report, isOld);
+    if (obj.length === 0) {
+      return <span className={highlight}>[]</span>;
+    }
+    return (
+      <>
+        <span className={highlight}>[</span>
+        <br />
+        {obj.map((item, i) => (
+          <span key={i}>
+            <span>{indentStr}  </span>
+            {renderJsonWithHighlights(item, report, isOld, `${currentPath}[${i}]`, indent + 1)}
+            {i < obj.length - 1 && <span>,</span>}
+            <br />
+          </span>
+        ))}
+        <span>{indentStr}</span>
+        <span className={highlight}>]</span>
+      </>
+    );
+  }
+  
+  if (typeof obj === "object") {
+    const keys = Object.keys(obj);
+    const highlight = getHighlightClass(currentPath, report, isOld);
+    
+    if (keys.length === 0) {
+      return <span className={highlight}>{`{}`}</span>;
+    }
+    
+    return (
+      <>
+        <span className={highlight}>{`{`}</span>
+        <br />
+        {keys.map((key, i) => {
+          const keyPath = currentPath ? `${currentPath}.${key}` : key;
+          const valueHighlight = getHighlightClass(keyPath, report, isOld);
+          const hasHighlight = valueHighlight !== "";
+          return (
+            <span key={key} className={hasHighlight ? `block ${valueHighlight}` : ""}>
+              <span>{indentStr}  </span>
+              <span className="text-blue-600">"{key}"</span>
+              <span>: </span>
+              {renderJsonWithHighlights(obj[key], report, isOld, keyPath, indent + 1)}
+              {i < keys.length - 1 && <span>,</span>}
+              <br />
+            </span>
+          );
+        })}
+        <span>{indentStr}</span>
+        <span className={highlight}>{`}`}</span>
+      </>
+    );
+  }
+  
+  return <span>{String(obj)}</span>;
+}
+
 // Simple LCS-based diff algorithm
 function computeLCS(oldLines: string[], newLines: string[]): number[][] {
   const m = oldLines.length;
@@ -131,18 +234,34 @@ export default function Page() {
         {oldJson && newJson && (
           <div className="rounded-2xl border bg-white p-4 shadow-sm">
             <h2 className="text-lg font-semibold mb-3">JSON Preview</h2>
+            {report && (
+              <div className="mb-3 flex flex-wrap gap-4 text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-6 h-4 bg-red-100 border-l-4 border-red-500 rounded-r"></span>
+                  <span>Removed</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-6 h-4 bg-green-100 border-l-4 border-green-500 rounded-r"></span>
+                  <span>Added</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-6 h-4 bg-amber-100 border-l-4 border-amber-500 rounded-r"></span>
+                  <span>Risky (Type Changed)</span>
+                </div>
+              </div>
+            )}
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <div className="text-sm font-medium text-slate-600 mb-2">Old JSON</div>
-                <pre className="overflow-auto max-h-96 rounded border bg-slate-50 p-3 text-xs font-mono">
-                  {formatJson(oldJson)}
-                </pre>
+                <div className="overflow-auto max-h-96 rounded border bg-slate-50 p-3 text-xs font-mono">
+                  {report ? renderJsonWithHighlights(oldJson, report, true) : <pre className="whitespace-pre">{formatJson(oldJson)}</pre>}
+                </div>
               </div>
               <div>
                 <div className="text-sm font-medium text-slate-600 mb-2">New JSON</div>
-                <pre className="overflow-auto max-h-96 rounded border bg-slate-50 p-3 text-xs font-mono">
-                  {formatJson(newJson)}
-                </pre>
+                <div className="overflow-auto max-h-96 rounded border bg-slate-50 p-3 text-xs font-mono">
+                  {report ? renderJsonWithHighlights(newJson, report, false) : <pre className="whitespace-pre">{formatJson(newJson)}</pre>}
+                </div>
               </div>
             </div>
           </div>
