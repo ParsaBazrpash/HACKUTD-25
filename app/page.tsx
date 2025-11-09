@@ -226,6 +226,9 @@ export default function Page() {
   const [schemaSearchQuery, setSchemaSearchQuery] = useState("");
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [ragOutput, setRagOutput] = useState<string | null>(null);
+  const [ragLoading, setRagLoading] = useState(false);
+  const [ragError, setRagError] = useState<string | null>(null);
 
   const loadJsonFromFile = async (f:File)=>JSON.parse(await f.text());
   const loadJsonFromUrl = async (url:string)=>{ const r=await fetch(`/api/fetch?url=${encodeURIComponent(url)}`); if(!r.ok) throw new Error(`Fetch ${r.status}`); return r.json(); };
@@ -249,6 +252,107 @@ export default function Page() {
   }
 
   function loadSamples(){ setOldUrl("/samples/v1.json"); setNewUrl("/samples/v2.json"); }
+
+  // Format diff report as text for RAG ingestion
+  function formatDiffReportForRAG(report: DiffReport | null): string {
+    if (!report) return "";
+    
+    let text = "API Schema Migration Changes Report\n";
+    text += "=====================================\n\n";
+    text += `Summary:\n`;
+    text += `- Added Fields: ${report.summary.added}\n`;
+    text += `- Removed Fields: ${report.summary.removed}\n`;
+    text += `- Risky Changes: ${report.summary.risky}\n\n`;
+    text += `Detailed Changes:\n`;
+    text += "================\n\n";
+    
+    report.changes.forEach((change, idx) => {
+      text += `${idx + 1}. `;
+      if (change.kind === "REMOVED_FIELD") {
+        text += `REMOVED: Field "${change.path}" (type: ${change.oldType}) was removed from the API.\n`;
+      } else if (change.kind === "ADDED_FIELD") {
+        text += `ADDED: Field "${change.path}" (type: ${change.newType}) was added to the API.\n`;
+      } else if (change.kind === "TYPE_CHANGED") {
+        text += `TYPE CHANGED: Field "${change.path}" changed from ${change.oldType} to ${change.newType}.\n`;
+      }
+      text += "\n";
+    });
+    
+    return text;
+  }
+
+  // Analyze changes with RAG
+  async function analyzeWithRAG() {
+    if (!report || !oldJson || !newJson) {
+      setRagError("No diff report available. Please run analysis first.");
+      return;
+    }
+
+    setRagLoading(true);
+    setRagError(null);
+    setRagOutput(null);
+
+    try {
+      // Format changes for the generate endpoint
+      const changes = report.changes.map((change: any) => ({
+        path: change.path,
+        kind: change.kind,
+        oldType: change.oldType || null,
+        newType: change.newType || null,
+      }));
+
+      // Step 1: Ingest the diff report (optional, for RAG context)
+      const diffText = formatDiffReportForRAG(report);
+      try {
+        const ingestResponse = await fetch("/api/rag", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "ingest",
+            data: {
+              text: diffText,
+            },
+          }),
+        });
+        // Don't fail if ingestion fails, continue with generate
+        await ingestResponse.json();
+      } catch (e) {
+        console.warn("Ingestion failed, continuing with generate:", e);
+      }
+
+      // Step 2: Generate insights using the generate endpoint
+      const generateResponse = await fetch("/api/rag", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "generate",
+          data: {
+            changes: changes,
+            old_schema: oldJson,
+            new_schema: newJson,
+            query: "Analyze these API changes and explain WHY the API was changed from v1 to v2. Focus on the business logic, data modeling improvements, or technical reasons behind each change. Use the field names, types, and actual values to provide insights.",
+            max_new_tokens: 600,
+            temperature: 0.3,
+          },
+        }),
+      });
+
+      const generateResult = await generateResponse.json();
+      if (!generateResult.ok) {
+        throw new Error(generateResult.msg || "Generation failed");
+      }
+
+      setRagOutput(generateResult.answer || "No response from AI system.");
+    } catch (e: any) {
+      setRagError(e.message || "RAG analysis failed");
+    } finally {
+      setRagLoading(false);
+    }
+  }
 
   // Adjust current page when filters change and page is out of bounds
   useEffect(() => {
@@ -502,6 +606,47 @@ export default function Page() {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* RAG Analysis Section */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h5 className="text-lg font-semibold text-gray-900">AI-Powered Change Explanation</h5>
+                      <p className="text-sm text-gray-600 mt-1">Get an AI-generated explanation of the schema changes</p>
+                    </div>
+                    <button
+                      onClick={analyzeWithRAG}
+                      disabled={ragLoading || !report}
+                      className="px-4 py-2 bg-[#D62311] text-white font-semibold rounded-lg hover:bg-[#B41D0E] disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      {ragLoading ? "Analyzing..." : "Explain Changes with AI"}
+                    </button>
+                  </div>
+
+                  {ragError && (
+                    <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded">
+                      <span className="text-sm font-medium text-red-800">{ragError}</span>
+                    </div>
+                  )}
+
+                  {ragOutput && (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h6 className="text-sm font-semibold text-blue-900 mb-2">AI Explanation:</h6>
+                      <div className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
+                        {ragOutput}
+                      </div>
+                    </div>
+                  )}
+
+                  {ragLoading && (
+                    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D62311]"></div>
+                        <span>Analyzing changes with AI...</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Change Summary Table */}
