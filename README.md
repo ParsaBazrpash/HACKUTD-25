@@ -2,7 +2,33 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js and npm installed
+- OAuth credentials for Google and/or GitHub (see [OAuth Setup Guide](./OAUTH_SETUP.md))
+
+### Installation
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Set up environment variables:
+
+Create a `.env.local` file in the root directory with the following variables (see [OAUTH_SETUP.md](./OAUTH_SETUP.md) for detailed instructions):
+
+```env
+NEXTAUTH_SECRET=your-nextauth-secret-here
+NEXTAUTH_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+```
+
+3. Run the development server:
 
 ```bash
 npm run dev
@@ -15,6 +41,10 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Authentication
+
+This application uses OAuth authentication via NextAuth.js. Users can sign in with Google or GitHub. For detailed setup instructions, see [OAUTH_SETUP.md](./OAUTH_SETUP.md).
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

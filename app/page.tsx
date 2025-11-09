@@ -1,8 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import { diffSchemas, type DiffReport } from "@/lib/diff";
 import { scoreDiff } from "@/lib/score";
+import { UserMenu } from "@/components/auth/user-menu";
+import { SignInButton } from "@/components/auth/signin-button";
+import { useRouter } from "next/navigation";
 
 function formatJson(obj: any): string {
   return JSON.stringify(obj, null, 2);
@@ -527,6 +531,8 @@ function renderInlineMarkdown(text: string): (string | JSX.Element)[] {
 }
 
 export default function Page() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [oldUrl,setOldUrl]=useState(""); const [newUrl,setNewUrl]=useState("");
   const [oldFile,setOldFile]=useState<File|null>(null); const [newFile,setNewFile]=useState<File|null>(null);
   const [oldJson,setOldJson]=useState<any>(null); const [newJson,setNewJson]=useState<any>(null);
@@ -726,7 +732,7 @@ export default function Page() {
                 height={40}
                 className="object-contain"
               />
-              <h1 className="text-xl font-bold">API Migration Copilot</h1>
+              <h1 className="text-xl font-bold">MirrorAPI</h1>
             </div>
             <div className="flex items-center gap-6">
               <button 
@@ -741,6 +747,18 @@ export default function Page() {
               >
                 Load Sample from API
               </button>
+              {status === "loading" ? (
+                <div className="text-sm">Loading...</div>
+              ) : session ? (
+                <UserMenu />
+              ) : (
+                <button
+                  onClick={() => router.push("/auth/signin")}
+                  className="px-4 py-2 bg-white text-[#D62311] rounded-lg font-medium hover:bg-gray-100 transition-colors"
+                >
+                  Sign In
+                </button>
+              )}
             </div>
           </div>
         </div>
