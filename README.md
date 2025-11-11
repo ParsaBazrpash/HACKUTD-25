@@ -6,7 +6,10 @@ Built with **Next.js 14 (App Router)**, **TypeScript**, **Tailwind + shadcn/ui**
 ---
 ## How to Run
 
-Please clone, open vitual env, install libs in requirements.txt then open nemotron folder and run main.py
+1) Clone the files
+2) Set up API keys in a .env file in the root directory
+3) Open python vitual env + install libs in requirements.txt
+4) Open nemotron folder and run main.py
 
 then go back to root directory and type npm install and npm run dev.
 
