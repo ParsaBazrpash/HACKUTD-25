@@ -4,6 +4,15 @@ A developer tool that compares two API responses, detects breaking changes, scor
 Built with **Next.js 14 (App Router)**, **TypeScript**, **Tailwind + shadcn/ui**, and a deterministic JSON diff engine.
 
 ---
+## How to Run
+
+Please clone, open vitual env, install libs in requirements.txt then open nemotron folder and run main.py
+
+then go back to root directory and type npm install and npm run dev.
+
+enjoy!!!
+
+---
 
 ## 🔍 What it does
 
