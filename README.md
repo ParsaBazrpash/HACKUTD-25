@@ -8,7 +8,7 @@
 
 
   
-Enter MIRROR API! A developer tool that compares two API responses, detects breaking changes, scores the migration risk, and generates a structured change report.  
+Enter **MIRROR API**! A developer tool that compares two API responses, detects breaking changes, scores the migration risk, and generates a structured change report.  
 Built with **Next.js 14 (App Router)**, **TypeScript**, **Tailwind + shadcn/ui**, and a deterministic JSON diff engine.
 
 ---
